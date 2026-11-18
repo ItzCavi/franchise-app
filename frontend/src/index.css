@@ -92,3 +92,25 @@ button:disabled {
 .muted {
   color: #6b7280;
 }
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.stock-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.stock-form input,
+.stock-input {
+  flex: none;
+  width: 6rem;
+}
+
+.small {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+}
