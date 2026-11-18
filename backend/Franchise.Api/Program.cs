@@ -10,6 +10,15 @@ builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+const string FrontendCorsPolicy = "Frontend";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -22,6 +31,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthorization();
 app.MapControllers();
 
