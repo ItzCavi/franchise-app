@@ -14,3 +14,6 @@ export function createFranchise(name) {
     body: JSON.stringify({ name }),
   });
 }
+export function getFranchiseReport(id) {
+  return request(`/franchises/${id}/report`);
+}

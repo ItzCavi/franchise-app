@@ -19,6 +19,7 @@ Fullstack application to manage **franchises**, their **branches** and the **pro
 - Create and list branches of a franchise
 - Create and list products of a branch
 - Update the stock of a product
+- Stock report per franchise: totals per branch and the product with the most stock
 - Input validation on both API and UI, with clear error messages (no stack traces)
 - Loading and error states in the UI
 - Unit tests for controllers and validation rules (xUnit)
@@ -101,6 +102,7 @@ Unit tests (xUnit) cover controller logic — success cases, `404` and `409` res
 | `FranchisesControllerTests` | Create (trims name), duplicate name → `409`, list ordered by name, not found → `404` |
 | `BranchesControllerTests` | Missing franchise → `404`, same name allowed in different franchises, duplicate in same franchise → `409`, filter by franchise |
 | `ProductsControllerTests` | Create, missing branch → `404`, stock update, missing product → `404` |
+| `ReportsControllerTests` | Totals per branch and franchise, top product per branch, branch without products, missing franchise → `404` |
 | `DtoValidationTests` | Required/empty names, max length, negative stock, missing stock, zero stock is valid |
 
 > Limitation: the InMemory provider does not enforce database constraints (unique indexes, check constraints). Those rules are covered by the API-level checks tested here and by the real SQL Server schema.
@@ -119,6 +121,7 @@ Unit tests (xUnit) cover controller logic — success cases, `404` and `409` res
 | POST | `/api/branches/{branchId}/products` | Create a product |
 | GET | `/api/products/{id}` | Get a product |
 | PATCH | `/api/products/{id}/stock` | Update product stock |
+| GET | `/api/franchises/{franchiseId}/report` | Stock report of a franchise (totals per branch, top product) |
 
 ### Response codes
 
@@ -166,12 +169,13 @@ franchise-app/
 - **Error handling:** `AddProblemDetails` + `UseExceptionHandler` return consistent JSON errors without exposing stack traces.
 - **RESTful nested routes** express ownership (`/franchises/{id}/branches`). `PATCH` is used for stock because only one field changes.
 - **CORS** only allows the frontend origin (`http://localhost:5173`).
+- **Stock report** loads the franchise with its branches and products in a single query (`Include`/`ThenInclude`, `AsNoTracking`) and aggregates in memory. For large data volumes, the aggregation would be moved to SQL with a projection.
 
 ### Frontend
 
 - **`api/client.js`** centralizes `fetch`, reads ProblemDetails errors (including validation errors) and handles connection failures.
 - **Pages** manage loading, error and empty states; forms validate input before calling the API and disable buttons while saving.
-- **React Router** handles navigation: Franchises → Branches → Products.
+- **React Router** handles navigation: Franchises → Branches → Products, plus a stock report page per franchise.
 
 ### Data model
 
@@ -184,7 +188,7 @@ Franchise (Id, Name)
 ## Git workflow
 
 - `main` only receives changes through Pull Requests.
-- Each module was developed in its own branch (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`).
+- Each module was developed in its own branch (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`, `feature/stock-report`).
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Notes
@@ -209,6 +213,7 @@ Aplicación fullstack para gestionar **franquicias**, sus **sucursales** y los *
 - Crear y listar sucursales de una franquicia
 - Crear y listar productos de una sucursal
 - Actualizar el stock de un producto
+- Reporte de stock por franquicia: totales por sucursal y el producto con más stock
 - Validación de datos en la API y en la interfaz, con mensajes de error claros (sin stack traces)
 - Estados de carga y de error en la interfaz
 - Pruebas unitarias de los controladores y de las reglas de validación (xUnit)
@@ -291,6 +296,7 @@ Las pruebas unitarias (xUnit) cubren la lógica de los controladores (casos exit
 | `FranchisesControllerTests` | Crear (recorta espacios del nombre), nombre duplicado → `409`, lista ordenada por nombre, no encontrada → `404` |
 | `BranchesControllerTests` | Franquicia inexistente → `404`, mismo nombre permitido en franquicias distintas, duplicado en la misma franquicia → `409`, filtro por franquicia |
 | `ProductsControllerTests` | Crear, sucursal inexistente → `404`, actualizar stock, producto inexistente → `404` |
+| `ReportsControllerTests` | Totales por sucursal y por franquicia, producto con más stock por sucursal, sucursal sin productos, franquicia inexistente → `404` |
 | `DtoValidationTests` | Nombres obligatorios/vacíos, longitud máxima, stock negativo, stock ausente, stock 0 válido |
 
 > Limitación: el proveedor InMemory no aplica las restricciones de la base de datos (índices únicos, restricciones `CHECK`). Esas reglas están cubiertas por las validaciones de la API que se prueban aquí y por el esquema real de SQL Server.
@@ -309,6 +315,7 @@ Las pruebas unitarias (xUnit) cubren la lógica de los controladores (casos exit
 | POST | `/api/branches/{branchId}/products` | Crear un producto |
 | GET | `/api/products/{id}` | Obtener un producto |
 | PATCH | `/api/products/{id}/stock` | Actualizar el stock de un producto |
+| GET | `/api/franchises/{franchiseId}/report` | Reporte de stock de una franquicia (totales por sucursal, producto con más stock) |
 
 ### Códigos de respuesta
 
@@ -356,12 +363,13 @@ franchise-app/
 - **Manejo de errores:** `AddProblemDetails` + `UseExceptionHandler` devuelven errores JSON consistentes sin exponer stack traces.
 - **Rutas REST anidadas** que expresan pertenencia (`/franchises/{id}/branches`). Se usa `PATCH` para el stock porque solo cambia un campo.
 - **CORS** solo permite el origen del frontend (`http://localhost:5173`).
+- **El reporte de stock** carga la franquicia con sus sucursales y productos en una sola consulta (`Include`/`ThenInclude`, `AsNoTracking`) y calcula los totales en memoria. Con grandes volúmenes de datos, la agregación se trasladaría a SQL mediante una proyección.
 
 ### Frontend
 
 - **`api/client.js`** centraliza `fetch`, interpreta los errores ProblemDetails (incluidos los de validación) y maneja los fallos de conexión.
 - **Las páginas** manejan los estados de carga, error y lista vacía; los formularios validan los datos antes de llamar a la API y desactivan los botones mientras guardan.
-- **React Router** gestiona la navegación: Franquicias → Sucursales → Productos.
+- **React Router** gestiona la navegación: Franquicias → Sucursales → Productos, además de una pantalla de reporte de stock por franquicia.
 
 ### Modelo de datos
 
@@ -374,7 +382,7 @@ Franchise (Id, Name)
 ## Flujo de trabajo con Git
 
 - `main` solo recibe cambios mediante Pull Requests.
-- Cada módulo se desarrolló en su propia rama (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`).
+- Cada módulo se desarrolló en su propia rama (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`, `feature/stock-report`).
 - Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Notas
