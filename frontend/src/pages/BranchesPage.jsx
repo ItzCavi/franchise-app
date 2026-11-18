@@ -75,7 +75,10 @@ export default function BranchesPage() {
   return (
     <section>
       <Link to="/franchises" className="back-link">← Back to franchises</Link>
-      <h1>Branches of {franchise.name}</h1>
+      <div className="page-header">
+        <h1>Branches of {franchise.name}</h1>
+        <Link to={`/franchises/${franchiseId}/report`}>View stock report →</Link>
+      </div>
 
       <form className="card form" onSubmit={handleSubmit}>
         <input
