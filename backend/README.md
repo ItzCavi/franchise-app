@@ -9,3 +9,7 @@ Quick start:
     cd Franchise.Api
     dotnet ef database update
     dotnet run
+
+Run the tests (from this folder):
+
+    dotnet test

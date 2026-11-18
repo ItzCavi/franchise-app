@@ -21,6 +21,7 @@ Fullstack application to manage **franchises**, their **branches** and the **pro
 - Update the stock of a product
 - Input validation on both API and UI, with clear error messages (no stack traces)
 - Loading and error states in the UI
+- Unit tests for controllers and validation rules (xUnit)
 
 ## Prerequisites
 
@@ -86,6 +87,24 @@ Connection string (`appsettings.json`):
 Server=(localdb)\MSSQLLocalDB;Database=FranchiseDb;Trusted_Connection=True;TrustServerCertificate=True
 ```
 
+## Running tests
+
+```bash
+cd backend
+dotnet test
+```
+
+Unit tests (xUnit) cover controller logic — success cases, `404` and `409` responses — and DTO validation rules. They use the EF Core InMemory provider, so each test gets its own isolated database.
+
+| Test class | What it covers |
+|---|---|
+| `FranchisesControllerTests` | Create (trims name), duplicate name → `409`, list ordered by name, not found → `404` |
+| `BranchesControllerTests` | Missing franchise → `404`, same name allowed in different franchises, duplicate in same franchise → `409`, filter by franchise |
+| `ProductsControllerTests` | Create, missing branch → `404`, stock update, missing product → `404` |
+| `DtoValidationTests` | Required/empty names, max length, negative stock, missing stock, zero stock is valid |
+
+> Limitation: the InMemory provider does not enforce database constraints (unique indexes, check constraints). Those rules are covered by the API-level checks tested here and by the real SQL Server schema.
+
 ## API endpoints
 
 | Method | Endpoint | Description |
@@ -120,6 +139,8 @@ All errors use the standard [ProblemDetails](https://datatracker.ietf.org/doc/ht
 franchise-app/
 ├── backend/
 │   ├── global.json                 # Pins .NET SDK 8
+│   ├── Franchise.sln               # Solution (API + tests)
+│   ├── Franchise.Api.Tests/        # xUnit tests (controllers, DTO validation)
 │   └── Franchise.Api/
 │       ├── Controllers/            # HTTP endpoints (one per resource)
 │       ├── Data/AppDbContext.cs    # EF Core context, relationships and constraints
@@ -163,7 +184,7 @@ Franchise (Id, Name)
 ## Git workflow
 
 - `main` only receives changes through Pull Requests.
-- Each module was developed in its own branch (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`).
+- Each module was developed in its own branch (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`).
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Notes
@@ -190,6 +211,7 @@ Aplicación fullstack para gestionar **franquicias**, sus **sucursales** y los *
 - Actualizar el stock de un producto
 - Validación de datos en la API y en la interfaz, con mensajes de error claros (sin stack traces)
 - Estados de carga y de error en la interfaz
+- Pruebas unitarias de los controladores y de las reglas de validación (xUnit)
 
 ## Requisitos previos
 
@@ -255,6 +277,24 @@ Cadena de conexión (`appsettings.json`):
 Server=(localdb)\MSSQLLocalDB;Database=FranchiseDb;Trusted_Connection=True;TrustServerCertificate=True
 ```
 
+## Ejecutar las pruebas
+
+```bash
+cd backend
+dotnet test
+```
+
+Las pruebas unitarias (xUnit) cubren la lógica de los controladores (casos exitosos y respuestas `404` y `409`) y las reglas de validación de los DTOs. Usan el proveedor InMemory de EF Core, así que cada prueba tiene su propia base de datos aislada.
+
+| Clase de prueba | Qué cubre |
+|---|---|
+| `FranchisesControllerTests` | Crear (recorta espacios del nombre), nombre duplicado → `409`, lista ordenada por nombre, no encontrada → `404` |
+| `BranchesControllerTests` | Franquicia inexistente → `404`, mismo nombre permitido en franquicias distintas, duplicado en la misma franquicia → `409`, filtro por franquicia |
+| `ProductsControllerTests` | Crear, sucursal inexistente → `404`, actualizar stock, producto inexistente → `404` |
+| `DtoValidationTests` | Nombres obligatorios/vacíos, longitud máxima, stock negativo, stock ausente, stock 0 válido |
+
+> Limitación: el proveedor InMemory no aplica las restricciones de la base de datos (índices únicos, restricciones `CHECK`). Esas reglas están cubiertas por las validaciones de la API que se prueban aquí y por el esquema real de SQL Server.
+
 ## Endpoints de la API
 
 | Método | Endpoint | Descripción |
@@ -289,6 +329,8 @@ Todos los errores usan el formato JSON estándar [ProblemDetails](https://datatr
 franchise-app/
 ├── backend/
 │   ├── global.json                 # Fija el SDK de .NET 8
+│   ├── Franchise.sln               # Solución (API + pruebas)
+│   ├── Franchise.Api.Tests/        # Pruebas xUnit (controladores, validación de DTOs)
 │   └── Franchise.Api/
 │       ├── Controllers/            # Endpoints HTTP (uno por recurso)
 │       ├── Data/AppDbContext.cs    # Contexto de EF Core, relaciones y restricciones
@@ -332,7 +374,7 @@ Franchise (Id, Name)
 ## Flujo de trabajo con Git
 
 - `main` solo recibe cambios mediante Pull Requests.
-- Cada módulo se desarrolló en su propia rama (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`).
+- Cada módulo se desarrolló en su propia rama (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`).
 - Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Notas
