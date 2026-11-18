@@ -2,6 +2,7 @@ import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import FranchisesPage from './pages/FranchisesPage';
 import BranchesPage from './pages/BranchesPage';
 import ProductsPage from './pages/ProductsPage';
+import ReportPage from './pages/ReportPage';
 export default function App() {
   return (
     <div className="app">
@@ -13,6 +14,7 @@ export default function App() {
 
       <main className="container">
         <Routes>
+          <Route path="/franchises/:franchiseId/report" element={<ReportPage />} />
           <Route path="/franchises/:franchiseId/branches" element={<BranchesPage />} />
           <Route path="/branches/:branchId/products" element={<ProductsPage />} />
           <Route path="/" element={<Navigate to="/franchises" replace />} />
