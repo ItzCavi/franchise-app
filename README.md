@@ -1,0 +1,341 @@
+# Franchise Manager
+
+Language / Idioma: [English](#english) · [Español](#español)
+
+---
+
+<a id="english"></a>
+
+# 🇬🇧 English
+
+Fullstack application to manage **franchises**, their **branches** and the **products** of each branch, including stock updates.
+
+- **Backend:** ASP.NET Core Web API (.NET 8) + Entity Framework Core + SQL Server
+- **Frontend:** React + Vite + React Router
+
+## Features
+
+- Create and list franchises
+- Create and list branches of a franchise
+- Create and list products of a branch
+- Update the stock of a product
+- Input validation on both API and UI, with clear error messages (no stack traces)
+- Loading and error states in the UI
+
+## Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| [.NET SDK](https://dotnet.microsoft.com/download/dotnet/8.0) | 8.0.x | Pinned in `backend/global.json` |
+| [Node.js](https://nodejs.org/) | 20.19+ or 22.12+ | Required by Vite 8 |
+| SQL Server LocalDB | Any recent version | Included with Visual Studio or SQL Server Express (Windows) |
+| EF Core CLI | 8.0.x | `dotnet tool install --global dotnet-ef --version 8.0.*` |
+
+> Not on Windows? Any SQL Server instance works — just update the connection string in `backend/Franchise.Api/appsettings.json`.
+
+## Getting started
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/ItzCavi/franchise-app.git
+cd franchise-app
+```
+
+### 2. Run the backend
+
+```bash
+cd backend/Franchise.Api
+dotnet restore
+dotnet ef database update
+dotnet run
+```
+
+- API: http://localhost:5104
+- Swagger UI: http://localhost:5104/swagger
+
+`dotnet ef database update` creates the `FranchiseDb` database in LocalDB and applies all migrations.
+
+### 3. Run the frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- App: http://localhost:5173
+
+The API URL is configured in `frontend/.env.development` (`VITE_API_URL`). Change it if your API runs on a different port.
+
+## Database migrations (EF Core)
+
+Run these commands from `backend/Franchise.Api`.
+
+| Action | Command |
+|---|---|
+| Apply migrations / create database | `dotnet ef database update` |
+| Create a new migration after changing a model | `dotnet ef migrations add <MigrationName>` |
+| Remove the last migration (if not applied) | `dotnet ef migrations remove` |
+
+Connection string (`appsettings.json`):
+
+```
+Server=(localdb)\MSSQLLocalDB;Database=FranchiseDb;Trusted_Connection=True;TrustServerCertificate=True
+```
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/franchises` | List franchises |
+| GET | `/api/franchises/{id}` | Get a franchise |
+| POST | `/api/franchises` | Create a franchise |
+| GET | `/api/franchises/{franchiseId}/branches` | List branches of a franchise |
+| POST | `/api/franchises/{franchiseId}/branches` | Create a branch |
+| GET | `/api/branches/{id}` | Get a branch |
+| GET | `/api/branches/{branchId}/products` | List products of a branch |
+| POST | `/api/branches/{branchId}/products` | Create a product |
+| GET | `/api/products/{id}` | Get a product |
+| PATCH | `/api/products/{id}/stock` | Update product stock |
+
+### Response codes
+
+| Code | Meaning |
+|---|---|
+| `200` | OK |
+| `201` | Created (includes `Location` header) |
+| `400` | Validation error |
+| `404` | Resource not found |
+| `409` | Duplicate name |
+| `500` | Unexpected error (generic message, no stack trace) |
+
+All errors use the standard [ProblemDetails](https://datatracker.ietf.org/doc/html/rfc9457) JSON format.
+
+## Architecture
+
+```
+franchise-app/
+├── backend/
+│   ├── global.json                 # Pins .NET SDK 8
+│   └── Franchise.Api/
+│       ├── Controllers/            # HTTP endpoints (one per resource)
+│       ├── Data/AppDbContext.cs    # EF Core context, relationships and constraints
+│       ├── Dtos/                   # Request/response contracts with validation
+│       ├── Migrations/             # EF Core migrations
+│       ├── Models/                 # Domain entities
+│       └── Program.cs              # DI, CORS, Swagger, error handling
+└── frontend/
+    └── src/
+        ├── api/                    # HTTP client and calls per resource
+        ├── components/             # Reusable UI components
+        ├── pages/                  # One component per screen
+        └── App.jsx                 # Routes
+```
+
+### Backend
+
+- **Controllers + EF Core:** controllers use `AppDbContext` directly through dependency injection. For an application of this size, an extra repository/service layer would add code without adding value; EF Core's `DbContext` already acts as a unit of work. If business rules grew, the next step would be moving logic into a service layer.
+- **DTOs** separate the API contract from the database entities: they avoid circular references in JSON and prevent clients from setting fields like `Id`.
+- **Validation in two layers:**
+  - API: Data Annotations (`[Required]`, `[StringLength]`, `[Range]`) validated automatically by `[ApiController]`.
+  - Database: unique indexes (no duplicate names per parent), a check constraint (`Stock >= 0`) and cascade delete.
+- **Error handling:** `AddProblemDetails` + `UseExceptionHandler` return consistent JSON errors without exposing stack traces.
+- **RESTful nested routes** express ownership (`/franchises/{id}/branches`). `PATCH` is used for stock because only one field changes.
+- **CORS** only allows the frontend origin (`http://localhost:5173`).
+
+### Frontend
+
+- **`api/client.js`** centralizes `fetch`, reads ProblemDetails errors (including validation errors) and handles connection failures.
+- **Pages** manage loading, error and empty states; forms validate input before calling the API and disable buttons while saving.
+- **React Router** handles navigation: Franchises → Branches → Products.
+
+### Data model
+
+```
+Franchise (Id, Name)
+   └── 1:N ── Branch (Id, FranchiseId, Name)
+                 └── 1:N ── Product (Id, BranchId, Name, Stock)
+```
+
+## Git workflow
+
+- `main` only receives changes through Pull Requests.
+- Each module was developed in its own branch (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`).
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
+
+## Notes
+
+- **.NET 8** reached end of support on November 10, 2026. It is used here because the technical test requires it; upgrading to a supported version would mainly require changing `TargetFramework` and package versions.
+- `npm audit` reports a vulnerability in `picomatch`, a transitive dependency of Vite used only by the dev tooling. The suggested `npm audit fix --force` downgrades Vite to an older major version, so it was not applied.
+
+---
+
+<a id="español"></a>
+
+# 🇪🇸 Español
+
+Aplicación fullstack para gestionar **franquicias**, sus **sucursales** y los **productos** de cada sucursal, incluyendo la actualización de stock.
+
+- **Backend:** ASP.NET Core Web API (.NET 8) + Entity Framework Core + SQL Server
+- **Frontend:** React + Vite + React Router
+
+## Funcionalidades
+
+- Crear y listar franquicias
+- Crear y listar sucursales de una franquicia
+- Crear y listar productos de una sucursal
+- Actualizar el stock de un producto
+- Validación de datos en la API y en la interfaz, con mensajes de error claros (sin stack traces)
+- Estados de carga y de error en la interfaz
+
+## Requisitos previos
+
+| Herramienta | Versión | Notas |
+|---|---|---|
+| [.NET SDK](https://dotnet.microsoft.com/download/dotnet/8.0) | 8.0.x | Fijada en `backend/global.json` |
+| [Node.js](https://nodejs.org/) | 20.19+ o 22.12+ | Requerido por Vite 8 |
+| SQL Server LocalDB | Cualquier versión reciente | Incluido con Visual Studio o SQL Server Express (Windows) |
+| EF Core CLI | 8.0.x | `dotnet tool install --global dotnet-ef --version 8.0.*` |
+
+> ¿No usas Windows? Funciona con cualquier instancia de SQL Server; solo actualiza la cadena de conexión en `backend/Franchise.Api/appsettings.json`.
+
+## Cómo ejecutar el proyecto
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/ItzCavi/franchise-app.git
+cd franchise-app
+```
+
+### 2. Ejecutar el backend
+
+```bash
+cd backend/Franchise.Api
+dotnet restore
+dotnet ef database update
+dotnet run
+```
+
+- API: http://localhost:5104
+- Swagger UI: http://localhost:5104/swagger
+
+`dotnet ef database update` crea la base de datos `FranchiseDb` en LocalDB y aplica todas las migraciones.
+
+### 3. Ejecutar el frontend
+
+En una segunda terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- Aplicación: http://localhost:5173
+
+La URL de la API se configura en `frontend/.env.development` (`VITE_API_URL`). Cámbiala si tu API corre en otro puerto.
+
+## Migraciones de base de datos (EF Core)
+
+Ejecuta estos comandos desde `backend/Franchise.Api`.
+
+| Acción | Comando |
+|---|---|
+| Aplicar migraciones / crear la base de datos | `dotnet ef database update` |
+| Crear una migración nueva tras cambiar un modelo | `dotnet ef migrations add <NombreMigracion>` |
+| Eliminar la última migración (si no se aplicó) | `dotnet ef migrations remove` |
+
+Cadena de conexión (`appsettings.json`):
+
+```
+Server=(localdb)\MSSQLLocalDB;Database=FranchiseDb;Trusted_Connection=True;TrustServerCertificate=True
+```
+
+## Endpoints de la API
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| GET | `/api/franchises` | Listar franquicias |
+| GET | `/api/franchises/{id}` | Obtener una franquicia |
+| POST | `/api/franchises` | Crear una franquicia |
+| GET | `/api/franchises/{franchiseId}/branches` | Listar sucursales de una franquicia |
+| POST | `/api/franchises/{franchiseId}/branches` | Crear una sucursal |
+| GET | `/api/branches/{id}` | Obtener una sucursal |
+| GET | `/api/branches/{branchId}/products` | Listar productos de una sucursal |
+| POST | `/api/branches/{branchId}/products` | Crear un producto |
+| GET | `/api/products/{id}` | Obtener un producto |
+| PATCH | `/api/products/{id}/stock` | Actualizar el stock de un producto |
+
+### Códigos de respuesta
+
+| Código | Significado |
+|---|---|
+| `200` | OK |
+| `201` | Creado (incluye el header `Location`) |
+| `400` | Error de validación |
+| `404` | Recurso no encontrado |
+| `409` | Nombre duplicado |
+| `500` | Error inesperado (mensaje genérico, sin stack trace) |
+
+Todos los errores usan el formato JSON estándar [ProblemDetails](https://datatracker.ietf.org/doc/html/rfc9457).
+
+## Arquitectura
+
+```
+franchise-app/
+├── backend/
+│   ├── global.json                 # Fija el SDK de .NET 8
+│   └── Franchise.Api/
+│       ├── Controllers/            # Endpoints HTTP (uno por recurso)
+│       ├── Data/AppDbContext.cs    # Contexto de EF Core, relaciones y restricciones
+│       ├── Dtos/                   # Contratos de entrada/salida con validación
+│       ├── Migrations/             # Migraciones de EF Core
+│       ├── Models/                 # Entidades del dominio
+│       └── Program.cs              # Inyección de dependencias, CORS, Swagger, manejo de errores
+└── frontend/
+    └── src/
+        ├── api/                    # Cliente HTTP y llamadas por recurso
+        ├── components/             # Componentes reutilizables
+        ├── pages/                  # Un componente por pantalla
+        └── App.jsx                 # Rutas
+```
+
+### Backend
+
+- **Controllers + EF Core:** los controladores usan `AppDbContext` directamente mediante inyección de dependencias. En una aplicación de este tamaño, una capa extra de repositorios o servicios añadiría código sin aportar valor; el `DbContext` de EF Core ya actúa como unidad de trabajo. Si las reglas de negocio crecieran, el siguiente paso sería mover la lógica a una capa de servicios.
+- **Los DTOs** separan el contrato de la API de las entidades de la base de datos: evitan referencias circulares al serializar a JSON e impiden que el cliente asigne campos como `Id`.
+- **Validación en dos capas:**
+  - API: Data Annotations (`[Required]`, `[StringLength]`, `[Range]`), validadas automáticamente por `[ApiController]`.
+  - Base de datos: índices únicos (sin nombres duplicados dentro del mismo padre), una restricción `CHECK` (`Stock >= 0`) y borrado en cascada.
+- **Manejo de errores:** `AddProblemDetails` + `UseExceptionHandler` devuelven errores JSON consistentes sin exponer stack traces.
+- **Rutas REST anidadas** que expresan pertenencia (`/franchises/{id}/branches`). Se usa `PATCH` para el stock porque solo cambia un campo.
+- **CORS** solo permite el origen del frontend (`http://localhost:5173`).
+
+### Frontend
+
+- **`api/client.js`** centraliza `fetch`, interpreta los errores ProblemDetails (incluidos los de validación) y maneja los fallos de conexión.
+- **Las páginas** manejan los estados de carga, error y lista vacía; los formularios validan los datos antes de llamar a la API y desactivan los botones mientras guardan.
+- **React Router** gestiona la navegación: Franquicias → Sucursales → Productos.
+
+### Modelo de datos
+
+```
+Franchise (Id, Name)
+   └── 1:N ── Branch (Id, FranchiseId, Name)
+                 └── 1:N ── Product (Id, BranchId, Name, Stock)
+```
+
+## Flujo de trabajo con Git
+
+- `main` solo recibe cambios mediante Pull Requests.
+- Cada módulo se desarrolló en su propia rama (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`).
+- Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
+
+## Notas
+
+- **.NET 8** dejó de tener soporte oficial el 10 de noviembre de 2026. Se usa porque la prueba técnica lo exige; actualizar a una versión con soporte requeriría principalmente cambiar el `TargetFramework` y las versiones de los paquetes.
+- `npm audit` reporta una vulnerabilidad en `picomatch`, una dependencia indirecta de Vite que solo usan las herramientas de desarrollo. El comando sugerido `npm audit fix --force` degrada Vite a una versión mayor anterior, por lo que no se aplicó.

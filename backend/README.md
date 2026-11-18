@@ -1,7 +1,11 @@
-# Backend (.NET 8 / ASP.NET Core + EF Core)
+# Backend – Franchise.Api
 
-## Requirements
-- .NET SDK 8.x
-- SQL Server LocalDB
+ASP.NET Core Web API (.NET 8) with EF Core and SQL Server.
 
-Setup instructions will be added.
+See the [main README](../README.md) for setup, migrations and endpoints.
+
+Quick start:
+
+    cd Franchise.Api
+    dotnet ef database update
+    dotnet run
