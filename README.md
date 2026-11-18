@@ -23,6 +23,7 @@ Fullstack application to manage **franchises**, their **branches** and the **pro
 - Input validation on both API and UI, with clear error messages (no stack traces)
 - Loading and error states in the UI
 - Unit tests for controllers and validation rules (xUnit)
+- One-command setup with Docker Compose (SQL Server + API + frontend)
 
 ## Prerequisites
 
@@ -33,7 +34,7 @@ Fullstack application to manage **franchises**, their **branches** and the **pro
 | SQL Server LocalDB | Any recent version | Included with Visual Studio or SQL Server Express (Windows) |
 | EF Core CLI | 8.0.x | `dotnet tool install --global dotnet-ef --version 8.0.*` |
 
-> Not on Windows? Any SQL Server instance works — just update the connection string in `backend/Franchise.Api/appsettings.json`.
+> Not on Windows? Any SQL Server instance works — just update the connection string in `backend/Franchise.Api/appsettings.json`, or use [Docker](#run-with-docker-alternative).
 
 ## Getting started
 
@@ -71,6 +72,29 @@ npm run dev
 - App: http://localhost:5173
 
 The API URL is configured in `frontend/.env.development` (`VITE_API_URL`). Change it if your API runs on a different port.
+
+## Run with Docker (alternative)
+
+Runs SQL Server, the API and the frontend with a single command. Only [Docker Desktop](https://www.docker.com/products/docker-desktop/) is required — no .NET, Node.js or SQL Server installation needed.
+
+```bash
+docker compose up --build
+```
+
+- App: http://localhost:5173
+- Swagger UI: http://localhost:5104/swagger
+
+The first run takes a few minutes while images are downloaded. The API waits until SQL Server is healthy and applies the EF Core migrations automatically on startup.
+
+| Service | Image | Port | Description |
+|---|---|---|---|
+| `db` | `mcr.microsoft.com/mssql/server:2022-latest` | internal | SQL Server, data persisted in the `mssql-data` volume |
+| `api` | built from `backend/Dockerfile` | `5104` | ASP.NET Core API (multi-stage build: SDK → runtime) |
+| `web` | built from `frontend/Dockerfile` | `5173` | React app built with Vite and served by nginx |
+
+To stop: `Ctrl + C`, then `docker compose down` (add `-v` to also delete the database data).
+
+> Stop any local `dotnet run` / `npm run dev` first — they use the same ports. The Docker database is separate from LocalDB and starts empty.
 
 ## Database migrations (EF Core)
 
@@ -140,7 +164,9 @@ All errors use the standard [ProblemDetails](https://datatracker.ietf.org/doc/ht
 
 ```
 franchise-app/
+├── docker-compose.yml              # SQL Server + API + frontend
 ├── backend/
+│   ├── Dockerfile                  # Multi-stage build of the API
 │   ├── global.json                 # Pins .NET SDK 8
 │   ├── Franchise.sln               # Solution (API + tests)
 │   ├── Franchise.Api.Tests/        # xUnit tests (controllers, DTO validation)
@@ -152,6 +178,8 @@ franchise-app/
 │       ├── Models/                 # Domain entities
 │       └── Program.cs              # DI, CORS, Swagger, error handling
 └── frontend/
+    ├── Dockerfile                  # Vite build served by nginx
+    ├── nginx.conf                  # SPA fallback for React Router
     └── src/
         ├── api/                    # HTTP client and calls per resource
         ├── components/             # Reusable UI components
@@ -169,6 +197,7 @@ franchise-app/
 - **Error handling:** `AddProblemDetails` + `UseExceptionHandler` return consistent JSON errors without exposing stack traces.
 - **RESTful nested routes** express ownership (`/franchises/{id}/branches`). `PATCH` is used for stock because only one field changes.
 - **CORS** only allows the frontend origin (`http://localhost:5173`).
+- **Migrations on startup** are applied only when `ApplyMigrationsOnStartup=true` (enabled in Docker). `EnableRetryOnFailure` makes the connection resilient while SQL Server starts.
 - **Stock report** loads the franchise with its branches and products in a single query (`Include`/`ThenInclude`, `AsNoTracking`) and aggregates in memory. For large data volumes, the aggregation would be moved to SQL with a projection.
 
 ### Frontend
@@ -188,13 +217,14 @@ Franchise (Id, Name)
 ## Git workflow
 
 - `main` only receives changes through Pull Requests.
-- Each module was developed in its own branch (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`, `feature/stock-report`).
-- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
+- Each module was developed in its own branch (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`, `feature/stock-report`, `feature/docker`).
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `build:`).
 
 ## Notes
 
 - **.NET 8** reached end of support on November 10, 2026. It is used here because the technical test requires it; upgrading to a supported version would mainly require changing `TargetFramework` and package versions.
 - `npm audit` reports a vulnerability in `picomatch`, a transitive dependency of Vite used only by the dev tooling. The suggested `npm audit fix --force` downgrades Vite to an older major version, so it was not applied.
+- The SQL Server password in `docker-compose.yml` is for **local development only**. In a real deployment it would come from environment variables or a secrets manager.
 
 ---
 
@@ -217,6 +247,7 @@ Aplicación fullstack para gestionar **franquicias**, sus **sucursales** y los *
 - Validación de datos en la API y en la interfaz, con mensajes de error claros (sin stack traces)
 - Estados de carga y de error en la interfaz
 - Pruebas unitarias de los controladores y de las reglas de validación (xUnit)
+- Ejecución con un solo comando mediante Docker Compose (SQL Server + API + frontend)
 
 ## Requisitos previos
 
@@ -227,7 +258,7 @@ Aplicación fullstack para gestionar **franquicias**, sus **sucursales** y los *
 | SQL Server LocalDB | Cualquier versión reciente | Incluido con Visual Studio o SQL Server Express (Windows) |
 | EF Core CLI | 8.0.x | `dotnet tool install --global dotnet-ef --version 8.0.*` |
 
-> ¿No usas Windows? Funciona con cualquier instancia de SQL Server; solo actualiza la cadena de conexión en `backend/Franchise.Api/appsettings.json`.
+> ¿No usas Windows? Funciona con cualquier instancia de SQL Server; solo actualiza la cadena de conexión en `backend/Franchise.Api/appsettings.json`, o usa [Docker](#ejecutar-con-docker-alternativa).
 
 ## Cómo ejecutar el proyecto
 
@@ -265,6 +296,29 @@ npm run dev
 - Aplicación: http://localhost:5173
 
 La URL de la API se configura en `frontend/.env.development` (`VITE_API_URL`). Cámbiala si tu API corre en otro puerto.
+
+## Ejecutar con Docker (alternativa)
+
+Levanta SQL Server, la API y el frontend con un solo comando. Solo se necesita [Docker Desktop](https://www.docker.com/products/docker-desktop/); no hace falta instalar .NET, Node.js ni SQL Server.
+
+```bash
+docker compose up --build
+```
+
+- Aplicación: http://localhost:5173
+- Swagger UI: http://localhost:5104/swagger
+
+La primera ejecución tarda unos minutos mientras se descargan las imágenes. La API espera a que SQL Server esté listo (healthcheck) y aplica las migraciones de EF Core automáticamente al arrancar.
+
+| Servicio | Imagen | Puerto | Descripción |
+|---|---|---|---|
+| `db` | `mcr.microsoft.com/mssql/server:2022-latest` | interno | SQL Server, datos persistidos en el volumen `mssql-data` |
+| `api` | construida desde `backend/Dockerfile` | `5104` | API ASP.NET Core (build multi-etapa: SDK → runtime) |
+| `web` | construida desde `frontend/Dockerfile` | `5173` | App React compilada con Vite y servida con nginx |
+
+Para detener: `Ctrl + C` y luego `docker compose down` (añade `-v` para borrar también los datos de la base de datos).
+
+> Detén antes cualquier `dotnet run` / `npm run dev` local, porque usan los mismos puertos. La base de datos de Docker es independiente de LocalDB y empieza vacía.
 
 ## Migraciones de base de datos (EF Core)
 
@@ -334,7 +388,9 @@ Todos los errores usan el formato JSON estándar [ProblemDetails](https://datatr
 
 ```
 franchise-app/
+├── docker-compose.yml              # SQL Server + API + frontend
 ├── backend/
+│   ├── Dockerfile                  # Build multi-etapa de la API
 │   ├── global.json                 # Fija el SDK de .NET 8
 │   ├── Franchise.sln               # Solución (API + pruebas)
 │   ├── Franchise.Api.Tests/        # Pruebas xUnit (controladores, validación de DTOs)
@@ -346,6 +402,8 @@ franchise-app/
 │       ├── Models/                 # Entidades del dominio
 │       └── Program.cs              # Inyección de dependencias, CORS, Swagger, manejo de errores
 └── frontend/
+    ├── Dockerfile                  # Build de Vite servido con nginx
+    ├── nginx.conf                  # Redirección a index.html para React Router
     └── src/
         ├── api/                    # Cliente HTTP y llamadas por recurso
         ├── components/             # Componentes reutilizables
@@ -363,6 +421,7 @@ franchise-app/
 - **Manejo de errores:** `AddProblemDetails` + `UseExceptionHandler` devuelven errores JSON consistentes sin exponer stack traces.
 - **Rutas REST anidadas** que expresan pertenencia (`/franchises/{id}/branches`). Se usa `PATCH` para el stock porque solo cambia un campo.
 - **CORS** solo permite el origen del frontend (`http://localhost:5173`).
+- **Las migraciones al arrancar** solo se aplican si `ApplyMigrationsOnStartup=true` (activado en Docker). `EnableRetryOnFailure` hace la conexión resiliente mientras SQL Server arranca.
 - **El reporte de stock** carga la franquicia con sus sucursales y productos en una sola consulta (`Include`/`ThenInclude`, `AsNoTracking`) y calcula los totales en memoria. Con grandes volúmenes de datos, la agregación se trasladaría a SQL mediante una proyección.
 
 ### Frontend
@@ -382,10 +441,11 @@ Franchise (Id, Name)
 ## Flujo de trabajo con Git
 
 - `main` solo recibe cambios mediante Pull Requests.
-- Cada módulo se desarrolló en su propia rama (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`, `feature/stock-report`).
-- Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
+- Cada módulo se desarrolló en su propia rama (`feature/backend-setup`, `feature/franchise-module`, `feature/branch-module`, `feature/product-module`, `feature/frontend-setup`, `feature/branches-products-pages`, `docs/readme`, `feature/unit-tests`, `feature/stock-report`, `feature/docker`).
+- Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `build:`).
 
 ## Notas
 
 - **.NET 8** dejó de tener soporte oficial el 10 de noviembre de 2026. Se usa porque la prueba técnica lo exige; actualizar a una versión con soporte requeriría principalmente cambiar el `TargetFramework` y las versiones de los paquetes.
 - `npm audit` reporta una vulnerabilidad en `picomatch`, una dependencia indirecta de Vite que solo usan las herramientas de desarrollo. El comando sugerido `npm audit fix --force` degrada Vite a una versión mayor anterior, por lo que no se aplicó.
+- La contraseña de SQL Server en `docker-compose.yml` es **solo para desarrollo local**. En un despliegue real vendría de variables de entorno o de un gestor de secretos.
